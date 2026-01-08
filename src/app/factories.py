@@ -10,7 +10,15 @@ from src.services.yahoo_finance_service import YahooFinanceService
 
 
 def create_yahoo_service() -> YahooFinanceService:
-    """Create and configure a YahooFinanceService instance with a Chrome WebDriver."""
-    options: webdriver.ChromeOptions = AppConfig.get_selenium_options()
-    driver: webdriver.Chrome = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    """
+    Factory to create a YahooFinanceService with pre-configured WebDriver.
+    """
+    options = AppConfig.get_selenium_options()
+
+    if AppConfig.CHROME_BIN:
+        service = Service(executable_path=AppConfig.CHROMEDRIVER_PATH)
+    else:
+        service = Service(ChromeDriverManager().install())
+
+    driver = webdriver.Chrome(service=service, options=options)
     return YahooFinanceService(driver)
