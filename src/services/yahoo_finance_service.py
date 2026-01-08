@@ -1,6 +1,12 @@
+# src/services/yahoo_finance_service.py
+
+
 import csv
 import time
+from datetime import datetime
+from pathlib import Path
 
+from bs4 import BeautifulSoup, Tag
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
@@ -18,6 +24,9 @@ class YahooFinanceService:
 
     def _select_and_cleanup_region(self, target_region: str) -> None:
         """Handle the selection of the target region and deselect previous filters."""
+        if target_region == "United States":
+            return
+
         region_btn: WebElement = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-ylk*='slk:Region']")))
         region_btn.click()
 
@@ -35,9 +44,8 @@ class YahooFinanceService:
                 break
 
         if not target_checkbox:
-            available: list[str] = [l.find_element(By.TAG_NAME, "span").text for l in labels]
+            available: list[str] = [label.find_element(By.TAG_NAME, "span").text for label in labels]
             raise ValueError(f"Region '{target_region}' not found. Available: {available}")
-
         if not target_checkbox.is_selected():
             self.driver.execute_script("arguments[0].click()", target_checkbox)
             time.sleep(0.3)
@@ -45,7 +53,6 @@ class YahooFinanceService:
         for label in labels:
             name: str = label.find_element(By.TAG_NAME, "span").text.strip()
             checkbox: WebElement = label.find_element(By.TAG_NAME, "input")
-
             if name.lower() != target_region.lower() and checkbox.is_selected():
                 self.driver.execute_script("arguments[0].click()", checkbox)
                 time.sleep(0.2)
@@ -67,29 +74,29 @@ class YahooFinanceService:
         time.sleep(2)
 
     def _extract_table(self) -> list[dict[str, str]]:
-        """Extract symbol, name, and price data from the current visible table page."""
+        """Extract symbol, name, and price data using BeautifulSoup for parsing."""
         try:
             self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "table tbody tr")))
             time.sleep(2)
 
-            rows: list[WebElement] = self.driver.find_elements(By.CSS_SELECTOR, "table tbody tr")
+            soup: BeautifulSoup = BeautifulSoup(self.driver.page_source, "html.parser")
+
+            rows: list[Tag] = soup.select("table tbody tr")
             results: list[dict[str, str]] = []
 
             for row in rows:
                 try:
-                    cols: list[WebElement] = row.find_elements(By.TAG_NAME, "td")
+                    cols: list[Tag] = row.find_all("td")
                     if len(cols) >= 5:
-                        raw_symbol: list[str] = cols[1].text.strip().split("\n")
-                        symbol: str = raw_symbol[-1].strip()
+                        raw_symbol_text: str = cols[1].get_text(strip=True)
+                        symbol: str = raw_symbol_text.split("\n")[-1].strip()
 
-                        name: str = cols[2].text.strip()
+                        name: str = cols[2].get_text(strip=True)
                         if name == "--" or not name:
-                            try:
-                                name = cols[1].find_element(By.TAG_NAME, "a").get_attribute("aria-label") or ""
-                            except:
-                                pass
+                            anchor: Tag | None = cols[1].find("a")
+                            name = anchor.get("aria-label", "") if anchor else ""
 
-                        price: str = cols[4].text.strip()
+                        price: str = cols[4].get_text(strip=True)
 
                         if symbol and price:
                             results.append({"symbol": symbol, "name": name, "price": price})
@@ -134,7 +141,6 @@ class YahooFinanceService:
 
             try:
                 next_btn: WebElement = self.driver.find_element(By.CSS_SELECTOR, "button[data-testid='next-page-button']")
-
                 is_disabled: bool = next_btn.get_attribute("disabled") is not None or "disabled" in (next_btn.get_attribute("class") or "")
 
                 if is_disabled:
@@ -149,12 +155,22 @@ class YahooFinanceService:
                 break
         return all_data
 
-    def _export_to_csv(self, data: list[dict[str, str]], filename: str) -> None:
-        """Write the aggregated data to a CSV file."""
-        with open(filename, mode="w", newline="", encoding="utf-8") as f:
+    def _export_to_csv(self, data: list[dict[str, str]], region: str) -> str:
+        """Create output directory and export data to a timestamped CSV file."""
+        output_dir: Path = Path("data/outputs")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create filename with timestamp: region_YYYYMMDD_HHMMSS.csv
+        timestamp: str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename: str = f"{region.lower().replace(' ', '_')}_{timestamp}.csv"
+        file_path: Path = output_dir / filename
+
+        with open(file_path, mode="w", newline="", encoding="utf-8") as f:
             writer: csv.DictWriter = csv.DictWriter(f, fieldnames=["symbol", "name", "price"])
             writer.writeheader()
             writer.writerows(data)
+
+        return str(file_path)
 
     def fetch_data(self, region: str) -> list[dict[str, str]]:
         """Navigate to the screener, apply filters, and return aggregated stock data."""
@@ -165,7 +181,8 @@ class YahooFinanceService:
 
         data: list[dict[str, str]] = self._extract_all_pages()
 
-        filename: str = f"stocks_{region.lower().replace(' ', '_')}.csv"
-        self._export_to_csv(data, filename)
+        if data:
+            file_saved: str = self._export_to_csv(data, region)
+            print(f"✅ Data saved to: {file_saved}")
 
         return data
