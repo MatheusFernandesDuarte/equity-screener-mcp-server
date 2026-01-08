@@ -88,12 +88,19 @@ class YahooFinanceService:
                 try:
                     cols: list[Tag] = row.find_all("td")
                     if len(cols) >= 5:
-                        raw_symbol_text: str = cols[1].get_text(strip=True)
-                        symbol: str = raw_symbol_text.split("\n")[-1].strip()
+                        anchor = cols[1].find("a")
+                        if anchor:
+                            raw_symbol = anchor.get_text(strip=True)
+                            symbol_span = anchor.find("span", class_="symbol")
+                            if symbol_span:
+                                symbol = symbol_span.get_text(strip=True)
+                            else:
+                                symbol = raw_symbol
+                        else:
+                            continue
 
                         name: str = cols[2].get_text(strip=True)
                         if name == "--" or not name:
-                            anchor: Tag | None = cols[1].find("a")
                             name = anchor.get("aria-label", "") if anchor else ""
 
                         price: str = cols[4].get_text(strip=True)
