@@ -1,0 +1,37 @@
+name: Validate Yahoo Crawler
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run Tests with Pytest
+        run: uv run pytest tests/
+
+      - name: Build Docker Image (Validation)
+        run: |
+          docker build -t yahoo-crawler:test .
+          
+      - name: Success Notification
+        if: success()
+        run: echo "Code is safe to merge."
