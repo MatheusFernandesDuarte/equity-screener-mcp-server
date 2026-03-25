@@ -161,3 +161,28 @@ class StockRepository:
             }
             for r in result
         ]
+
+    def get_aggregated_for_ai(self, region: str, limit: int = 50) -> list[dict]:
+        """Return top N rows from the latest snapshot, ranked by price, for the AI layer.
+
+        Capped at `limit` rows and restricted to the most recent scrape batch only.
+        This keeps AI token usage predictable regardless of region size.
+        """
+        result = self.conn.execute(
+            """
+            SELECT symbol, name, price, scraped_at
+            FROM stocks
+            WHERE region = ?
+              AND scraped_at = (
+                  SELECT MAX(scraped_at) FROM stocks WHERE region = ?
+              )
+            ORDER BY price DESC
+            LIMIT ?
+            """,
+            [region, region, limit],
+        ).fetchall()
+
+        return [
+            {"symbol": r[0], "name": r[1], "price": float(r[2]), "scraped_at": r[3].isoformat()}
+            for r in result
+        ]
