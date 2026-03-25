@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "yahoo-finance": {
+      "command": "python",
+      "args": ["mcp_server.py"],
+      "cwd": "/path/to/yahoo_finance_service",
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "AI_PROVIDER": "claude",
+        "ANTHROPIC_API_KEY": "sk-ant-..."
+      }
+    }
+  }
+}

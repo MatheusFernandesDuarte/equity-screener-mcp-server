@@ -1,9 +1,11 @@
 [project]
-name = "verx-interview"
+name = "yahoo-finance-regional-crawler"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-native, MCP-enabled regional stock data service powered by Yahoo Finance"
 readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["yahoo-finance", "mcp", "stocks", "scraper", "ai"]
 dependencies = [
     "anthropic>=0.40.0",
     "bs4>=0.0.2",
