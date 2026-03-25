@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/Users/Mathe/Documents/yahoo_finance_service log --oneline -10)",
+      "Bash(git -C /c/Users/Mathe/Documents/yahoo_finance_service log --pretty=format:\"%h %s \\(%ar\\)\" -10)",
+      "Bash(git -C /c/Users/Mathe/Documents/yahoo_finance_service status)",
+      "Bash(find /c/Users/Mathe/Documents/yahoo_finance_service -not -path */.venv/* -not -path */.git/* -not -path */__pycache__/* -not -path */.pytest_cache/* -not -path */.claude/* -type f)",
+      "Bash(git -C /c/Users/Mathe/Documents/yahoo_finance_service diff src/app/main.py)",
+      "Bash(uv sync:*)",
+      "Bash(uv run:*)",
+      "Bash(uv --version)",
+      "Bash(python -m pytest tests/test_repository.py --tb=short)",
+      "Bash(python -m pytest tests/test_repository.py -v)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(python -m pytest tests/test_engine.py --tb=short)",
+      "Bash(python -m pytest tests/test_engine.py -v)",
+      "Bash(python -m pytest tests/test_scrape_manager.py --tb=short)",
+      "Bash(python -m pytest tests/test_scrape_manager.py -v)",
+      "Bash(python -m pytest tests/test_market_service.py --tb=line -q)",
+      "Bash(python -m pytest tests/test_ai_providers.py --tb=line -q)",
+      "Bash(python -m pytest tests/ -q)",
+      "Bash(python -m pytest tests/test_mcp_tools.py --tb=line -q)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Mathe\\Documents\\yahoo_finance_service\\docs\\superpowers"
+    ]
+  }
+}
