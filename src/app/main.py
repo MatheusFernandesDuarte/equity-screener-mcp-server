@@ -18,7 +18,6 @@ def run(region: str) -> None:
 
     try:
         service = create_yahoo_service()
-
         data: list[dict[str, str]] = service.fetch_data(region)
 
         if not data:
