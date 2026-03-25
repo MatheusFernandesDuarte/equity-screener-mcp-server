@@ -3,7 +3,7 @@
 
 import csv
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from bs4 import BeautifulSoup, Tag
@@ -12,6 +12,9 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+
+from src.storage.database import get_connection
+from src.storage.repository import StockRepository
 
 
 class YahooFinanceService:
@@ -191,5 +194,13 @@ class YahooFinanceService:
         if data:
             file_saved: str = self._export_to_csv(data, region)
             print(f"✅ Data saved to: {file_saved}")
+
+            scraped_at: datetime = datetime.now(tz=timezone.utc)
+            conn = get_connection()
+            repo = StockRepository(conn)
+            repo.insert_batch(region, data, scraped_at)
+            repo.upsert_region_metadata(region, scraped_at)
+            conn.close()
+            print(f"🗄️  Data persisted to DuckDB ({len(data)} rows).")
 
         return data
