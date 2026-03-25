@@ -3,8 +3,8 @@
 ## Setup
 
 ```bash
-git clone <repo>
-cd yahoo_finance_service
+git clone https://github.com/MatheusFernandesDuarte/yahoo-finance-regional-crawler.git
+cd yahoo-finance-regional-crawler
 uv sync
 uv run pytest tests/ -v    # verify everything passes
 ```
