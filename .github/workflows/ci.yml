@@ -70,4 +70,4 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t yahoo-finance-crawler:${{ github.sha }} .
+        run: docker build -t equity-screener:${{ github.sha }} .
