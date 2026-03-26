@@ -49,8 +49,8 @@ class MarketService:
             "last_scraped_at": meta["last_scraped_at"] if meta else None,
         }
 
-    def get_top_movers(self, region: str, n: int = 10) -> list[dict]:
-        return self._repo.get_top_movers(region, n)
+    def get_top_movers(self, region: str, n: int = 10, sort_by: str = "price") -> list[dict]:
+        return self._repo.get_top_movers(region, n, sort_by)
 
     def search_symbol(self, symbol: str) -> list[dict]:
         return self._repo.search_symbol(symbol)
@@ -58,6 +58,10 @@ class MarketService:
     def get_aggregated_for_ai(self, region: str, limit: int = 50) -> list[dict]:
         """Return pre-sliced, pre-ranked data for the AI layer (max rows, last 24h)."""
         return self._repo.get_aggregated_for_ai(region, limit)
+
+    def trigger_refresh(self, region: str) -> bool:
+        """Queue a background scrape for a region. Returns True if queued, False if already in progress."""
+        return self._manager.submit(region)
 
     # ------------------------------------------------------------------
     # Freshness
