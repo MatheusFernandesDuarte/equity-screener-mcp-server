@@ -1,6 +1,12 @@
 """DuckDB connection management and schema bootstrap."""
 
+import os
+from pathlib import Path
+
 import duckdb
+
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+_DEFAULT_DB_PATH = str(_PROJECT_ROOT / "data" / "market.duckdb")
 
 
 def bootstrap_schema(conn: duckdb.DuckDBPyConnection) -> None:
@@ -13,6 +19,11 @@ def bootstrap_schema(conn: duckdb.DuckDBPyConnection) -> None:
             price      DECIMAL(18, 4),
             scraped_at TIMESTAMP    NOT NULL
         )
+    """)
+
+    # Add change_pct column if upgrading from an older schema
+    conn.execute("""
+        ALTER TABLE stocks ADD COLUMN IF NOT EXISTS change_pct DECIMAL(10, 4)
     """)
 
     conn.execute("""
@@ -30,10 +41,15 @@ def bootstrap_schema(conn: duckdb.DuckDBPyConnection) -> None:
     """)
 
 
-def get_connection(db_path: str = "data/market.duckdb") -> duckdb.DuckDBPyConnection:
+def get_connection(db_path: str | None = None) -> duckdb.DuckDBPyConnection:
     """Open (or create) a persistent DuckDB database and bootstrap the schema."""
-    import os
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    conn = duckdb.connect(db_path)
+    resolved = db_path or os.getenv("DUCKDB_PATH") or _DEFAULT_DB_PATH
+    os.makedirs(os.path.dirname(resolved), exist_ok=True)
+    conn = duckdb.connect(resolved)
     bootstrap_schema(conn)
     return conn
+
+
+def bootstrap_db(db_path: str | None = None) -> duckdb.DuckDBPyConnection:
+    """Alias for get_connection — used in tests and CLI."""
+    return get_connection(db_path)

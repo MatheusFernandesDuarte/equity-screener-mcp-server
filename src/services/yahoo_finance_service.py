@@ -14,8 +14,6 @@ class YahooFinanceService:
 
     def __init__(self, engine: ScraperEngine) -> None:
         self.engine: ScraperEngine = engine
-        # Expose driver so main.py can call driver.quit() for cleanup
-        self.driver = engine.driver
 
     def fetch_data(self, region: str) -> list[dict[str, str]]:
         """Scrape a region, persist to CSV + DuckDB, and return the rows."""
@@ -42,7 +40,7 @@ class YahooFinanceService:
         filename = f"{region.lower().replace(' ', '_')}_{timestamp}.csv"
         file_path = output_dir / filename
         with open(file_path, mode="w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["symbol", "name", "price"])
+            writer = csv.DictWriter(f, fieldnames=["symbol", "name", "price", "change_pct"])
             writer.writeheader()
             writer.writerows(data)
         return str(file_path)
