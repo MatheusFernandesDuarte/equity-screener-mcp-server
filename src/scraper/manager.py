@@ -36,8 +36,8 @@ class ScrapeManager:
         self._repository = repository
 
         self._in_progress: set[str] = set()
-        self._lock = threading.Lock()          # guards _in_progress mutations
-        self._write_lock = threading.Lock()    # one DuckDB writer at a time
+        self._lock = threading.Lock()  # guards _in_progress mutations
+        self._write_lock = threading.Lock()  # one DuckDB writer at a time
 
         self._queue: queue.Queue[str] = queue.Queue()
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
@@ -55,7 +55,7 @@ class ScrapeManager:
         with self._lock:
             if region in self._in_progress:
                 return False
-            self._in_progress.add(region)   # mark BEFORE enqueue
+            self._in_progress.add(region)  # mark BEFORE enqueue
             self._queue.put(region)
         logger.debug("Queued scrape for region: %s", region)
         return True

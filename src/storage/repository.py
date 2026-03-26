@@ -39,18 +39,22 @@ class StockRepository:
 
             change_pct_str = row.get("change_pct", "").replace(",", "").strip()
             try:
-                change_pct: float | None = float(Decimal(change_pct_str)) if change_pct_str else None
+                change_pct: float | None = (
+                    float(Decimal(change_pct_str)) if change_pct_str else None
+                )
             except (InvalidOperation, ValueError):
                 change_pct = None
 
-            records.append((
-                region,
-                row.get("symbol", ""),
-                row.get("name", ""),
-                price,
-                change_pct,
-                ts,
-            ))
+            records.append(
+                (
+                    region,
+                    row.get("symbol", ""),
+                    row.get("name", ""),
+                    price,
+                    change_pct,
+                    ts,
+                )
+            )
 
         if records:
             self.conn.executemany(

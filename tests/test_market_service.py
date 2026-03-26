@@ -10,10 +10,10 @@ import pytest
 
 from src.services.market_service import Freshness, MarketService
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def utc_now():
     return datetime.now(tz=timezone.utc)
@@ -53,6 +53,7 @@ def service(repo, manager):
 # Freshness computation
 # ---------------------------------------------------------------------------
 
+
 def test_freshness_is_fresh_within_ttl(service):
     meta = make_meta(utc_now() - timedelta(seconds=1800), ttl_seconds=3600)
     assert service._compute_freshness(meta) == Freshness.FRESH
@@ -76,6 +77,7 @@ def test_freshness_is_expired_when_no_metadata(service):
 # Dynamic TTL
 # ---------------------------------------------------------------------------
 
+
 def test_compute_ttl_returns_14400_for_new_region(service):
     assert service._compute_ttl(0) == 14400
 
@@ -91,6 +93,7 @@ def test_compute_ttl_returns_3600_for_popular_region(service):
 # ---------------------------------------------------------------------------
 # get_stocks_by_region — data + freshness
 # ---------------------------------------------------------------------------
+
 
 def test_get_stocks_returns_cached_data(service, repo):
     repo.get_latest_by_region.return_value = SAMPLE_ROWS
@@ -142,7 +145,7 @@ def test_get_stocks_returns_data_immediately_even_when_stale(service, repo, mana
     response = service.get_stocks_by_region("Argentina")
 
     assert response["data"] == SAMPLE_ROWS  # stale data returned immediately
-    manager.submit.assert_called_once()     # refresh triggered in background
+    manager.submit.assert_called_once()  # refresh triggered in background
 
 
 def test_get_stocks_triggers_scrape_when_no_metadata(service, repo, manager):
@@ -166,6 +169,7 @@ def test_get_stocks_increments_access_count(service, repo):
 # get_top_movers
 # ---------------------------------------------------------------------------
 
+
 def test_get_top_movers_delegates_to_repo(service, repo):
     repo.get_top_movers.return_value = SAMPLE_ROWS[:1]
     result = service.get_top_movers("Argentina", n=5)
@@ -177,6 +181,7 @@ def test_get_top_movers_delegates_to_repo(service, repo):
 # search_symbol
 # ---------------------------------------------------------------------------
 
+
 def test_search_symbol_delegates_to_repo(service, repo):
     repo.search_symbol.return_value = SAMPLE_ROWS
     result = service.search_symbol("AAPL")
@@ -187,6 +192,7 @@ def test_search_symbol_delegates_to_repo(service, repo):
 # ---------------------------------------------------------------------------
 # get_aggregated_for_ai
 # ---------------------------------------------------------------------------
+
 
 def test_get_aggregated_for_ai_limits_rows(service, repo):
     repo.get_aggregated_for_ai.return_value = SAMPLE_ROWS

@@ -1,36 +1,73 @@
-# Yahoo Finance Regional Crawler
+<div align="center">
 
-**Ask your AI assistant about stock markets in any country — and get real answers, not hallucinations.**
+# 📈 Yahoo Finance Regional Crawler
 
-This project scrapes Yahoo Finance equity data for any region, stores it locally, and exposes it as tools that AI agents (Claude, GPT, or any MCP client) can call. Instead of the AI making up stock prices, it queries your local database.
+**Give your AI assistant real stock market data — from any country, in seconds.**
 
-**Practical example:**
-> "What are the top movers in Brazil today?" → Claude calls `get_top_movers("Brazil")` → gets live data from your database → answers accurately.
+[![CI](https://github.com/MatheusFernandesDuarte/yahoo-finance-regional-crawler/actions/workflows/ci.yml/badge.svg)](https://github.com/MatheusFernandesDuarte/yahoo-finance-regional-crawler/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-enabled-7c3aed?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io)
+[![uv](https://img.shields.io/badge/managed%20with-uv-DE5FE9)](https://docs.astral.sh/uv/)
 
-No more hallucinated tickers. No more stale training-data answers. The AI gets real numbers.
+<br/>
+
+*Tired of asking Claude about the stock market and getting hallucinated tickers?*
+*This project fixes that.*
+
+[Getting Started](#-getting-started) · [MCP Setup](#-connect-to-your-ai) · [Tools Reference](#-available-tools) · [Architecture](#️-architecture) · [Contributing](#-contributing)
+
+</div>
 
 ---
 
-## What problem does it solve?
+## 🤔 The Problem
 
-AI assistants don't have access to real-time stock data. When you ask "what's happening in the Argentine market today?", they either refuse or make things up.
+When you ask an AI assistant *"Which stocks spiked in Brazil today?"*, it either:
 
-This project gives your AI a tool it can actually call. You run the MCP server once, point your AI client at it, and from that moment your assistant can query any scraped region on demand — with fresh data, anomaly detection, and AI-generated summaries.
+- ❌ Refuses: *"I don't have access to real-time data"*
+- ❌ Hallucinates: Makes up tickers with confident-sounding prices
+
+**This project solves that.** It scrapes Yahoo Finance equity data for any region, stores it locally in DuckDB, and exposes it as MCP tools that AI agents can call directly.
+
+```
+You:    "Which stock spiked the most in Argentina today?"
+Claude: [calls get_top_movers("argentina", sort_by="change_pct")]
+        "NVDA.BA surged 8.3% today, followed by AAPL.BA at +5.1%..."
+```
+
+Real data. No hallucinations. No browser needed.
 
 ---
 
-## Quick Start
+## ✨ Features
+
+- **🚀 Fast** — HTTP-based scraper (no Selenium, no ChromeDriver). ~10× faster than browser automation.
+- **🗄️ Persistent** — DuckDB stores all snapshots locally. Queries are instant.
+- **🔄 Stale-while-revalidate** — AI always gets a response immediately; fresh data loads in background.
+- **🤖 AI-native** — 5 MCP tools purpose-built for LLM consumption, with freshness-aware descriptions.
+- **🌍 Any region** — Argentina, Brazil, Japan, Germany, India, and [60+ more](#supported-regions).
+- **📊 Rich data** — Symbol, name, price, and `change_pct` (daily % change) for every stock.
+- **🔌 Multi-provider** — Works with Claude, OpenAI, Perplexity, or fully offline with no API key.
+
+---
+
+## 🚀 Getting Started
+
+**Requirements:** Python 3.11+ and [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ```bash
-# Install dependencies
+# 1. Clone the repo
+git clone https://github.com/MatheusFernandesDuarte/yahoo-finance-regional-crawler.git
+cd yahoo-finance-regional-crawler
+
+# 2. Install dependencies
 uv sync
 
-# Scrape a region (stores data locally in DuckDB + CSV)
+# 3. Scrape your first region
 python run.py Argentina
-python run.py "United States"
-python run.py Belgium
 
-# Start the MCP server so your AI can query the data
+# 4. Start the MCP server
 python mcp_server.py
 ```
 
@@ -38,19 +75,25 @@ Output goes to `data/outputs/` (CSV) and `data/market.duckdb`.
 
 ---
 
-## Connect to Claude (or any MCP client)
+## 🔌 Connect to Your AI
 
-Add to your MCP config (`~/.claude/claude_desktop_config.json` or Claude Code settings):
+### Claude Code (recommended)
+
+```bash
+claude mcp add yahoo-finance -- python /path/to/yahoo-finance-regional-crawler/mcp_server.py
+```
+
+### Claude Desktop
+
+Add to `~/.claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "yahoo-finance": {
       "command": "python",
-      "args": ["mcp_server.py"],
-      "cwd": "/path/to/yahoo-finance-regional-crawler",
+      "args": ["/path/to/yahoo-finance-regional-crawler/mcp_server.py"],
       "env": {
-        "MCP_TRANSPORT": "stdio",
         "AI_PROVIDER": "local"
       }
     }
@@ -58,136 +101,235 @@ Add to your MCP config (`~/.claude/claude_desktop_config.json` or Claude Code se
 }
 ```
 
-Now ask Claude:
-- *"What are the top 10 stocks in Japan right now?"*
-- *"Are there any anomalies in the Brazilian market today?"*
-- *"Give me a market summary for Argentina."*
-- *"Find any ticker with 'petro' in the name."*
+### With Claude AI (richer summaries)
 
-Claude will call the tools, fetch live data from your local database, and answer with real numbers.
-
----
-
-## What the AI can do
-
-| Tool | What it does |
-|------|-------------|
-| `get_stocks_by_region(region)` | Returns the latest snapshot for a region. Triggers a background refresh if data is stale. |
-| `get_top_movers(region, n=10)` | Top N stocks by price from the latest snapshot. |
-| `search_symbol(symbol)` | Find any ticker across all scraped regions. Partial match, case-insensitive. |
-| `get_market_summary(region)` | AI-generated summary with anomaly detection and trend analysis. |
-| `trigger_refresh(region)` | Queue a fresh scrape in the background without blocking. |
-
-The AI never waits for a browser — responses always come from the local database. Scraping happens in background workers.
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│  Consumers: MCP tools / CLI                         │
-│       ↓                                             │
-│  MarketService  ──→  DuckDB (read, always fast)     │
-│       │                                             │
-│       └──→  ScrapeManager.submit()  [non-blocking]  │
-└─────────────────────────────────────────────────────┘
-         ↓ (background thread)
-┌─────────────────────────────────────────────────────┐
-│  ScraperEngine  ──→  Yahoo Finance (Selenium+BS4)   │
-│       ↓                                             │
-│  DuckDB (write, locked)                             │
-└─────────────────────────────────────────────────────┘
+```json
+{
+  "mcpServers": {
+    "yahoo-finance": {
+      "command": "python",
+      "args": ["/path/to/yahoo-finance-regional-crawler/mcp_server.py"],
+      "env": {
+        "AI_PROVIDER": "claude",
+        "ANTHROPIC_API_KEY": "sk-ant-..."
+      }
+    }
+  }
+}
 ```
 
-**Key invariants:**
-- MCP tools never block on a browser — always served from DuckDB
-- Scraping only happens in background workers via `ScrapeManager`
-- Stale-while-revalidate: return cached data, trigger refresh in background
-- AI layer is optional and fully offline by default
+---
+
+## 💬 Example Conversations
+
+Once connected, just ask naturally:
+
+> **"Which stock spiked the most in Argentina today?"**
+> → Claude calls `get_top_movers("argentina", sort_by="change_pct")` and returns ranked results with % change.
+
+> **"Give me a market summary for Brazil."**
+> → Claude calls `get_market_summary("brazil")` — returns AI-generated summary, anomaly detection, and trend analysis.
+
+> **"Find any ticker with 'petro' in the name."**
+> → Claude calls `search_symbol("petro")` — partial match across all scraped regions.
+
+> **"Are there anomalies in the Japanese market right now?"**
+> → Claude scrapes Japan if needed, analyzes Z-scores, flags statistical outliers.
+
+> **"What are the top 5 most expensive stocks in Germany?"**
+> → Claude calls `get_top_movers("germany", n=5, sort_by="price")`.
 
 ---
 
-## AI Providers
+## 🛠️ Available Tools
 
-Set `AI_PROVIDER`. If the API key is missing, the system falls back to the local rule-based provider automatically.
+| Tool | Parameters | What it does |
+|------|-----------|-------------|
+| `get_stocks_by_region` | `region` | Compact snapshot: count + top 10 + freshness status. Auto-triggers refresh if stale. |
+| `get_top_movers` | `region`, `n=10`, `sort_by="price"` | Top N stocks sorted by `price` or `change_pct` (daily % change). |
+| `search_symbol` | `symbol` | Case-insensitive partial match across all scraped regions. |
+| `get_market_summary` | `region` | AI-generated summary with anomaly detection and trend analysis. |
+| `trigger_refresh` | `region` | Queue a background scrape without blocking. |
 
-| Provider | Key required |
-|----------|-------------|
-| `local` (default) | No |
-| `claude` → `ANTHROPIC_API_KEY` | Yes |
-| `openai` → `OPENAI_API_KEY` | Yes |
-| `perplexity` → `PERPLEXITY_API_KEY` | Yes |
+> **Freshness logic:** Claude checks the `freshness` field (`fresh` / `stale` / `expired`) on every response and decides whether to use cached data or trigger a refresh first.
+
+---
+
+## 🤖 AI Providers
+
+| Provider | Env var | Quality |
+|----------|---------|---------|
+| `local` *(default)* | None required | Rule-based: Z-score anomalies, median trends. Works offline. |
+| `claude` | `ANTHROPIC_API_KEY` | Best narrative summaries and market context. |
+| `openai` | `OPENAI_API_KEY` | GPT-4o-mini by default, configurable. |
+| `perplexity` | `PERPLEXITY_API_KEY` | Good for combining live web context. |
+
+If the API key is missing, the system **automatically falls back** to `local` — no crashes.
 
 ```bash
+# Run with Claude AI
 AI_PROVIDER=claude ANTHROPIC_API_KEY=sk-ant-... python mcp_server.py
+
+# Run fully offline
+python mcp_server.py
 ```
 
 ---
 
-## HTTP server (remote / multi-client)
+## 🏗️ Architecture
 
-```bash
-MCP_TRANSPORT=http MCP_PORT=8000 python mcp_server.py
 ```
+┌──────────────────────────────────────────────────────┐
+│  Claude / GPT / any MCP client                       │
+│       ↓  MCP tool calls                              │
+│  MarketService  ──→  DuckDB  (reads, always fast)    │
+│       │                                              │
+│       └──→  ScrapeManager.submit()  [non-blocking]   │
+└──────────────────────────────────────────────────────┘
+          ↓ background thread
+┌──────────────────────────────────────────────────────┐
+│  ScraperEngine  ──→  Yahoo Finance API  (HTTP)       │
+│     Auth: GET finance.yahoo.com → cookies → crumb    │
+│     Data: POST /v1/finance/screener (JSON)           │
+│       ↓                                              │
+│  DuckDB  (writes, single lock)                       │
+└──────────────────────────────────────────────────────┘
+```
+
+**Key design invariants:**
+- MCP tools **never block** on a network call — always served from DuckDB
+- Scraping only happens in background workers (no Selenium, no Chrome)
+- **Stale-while-revalidate**: return cached data instantly, refresh in background
+- AI layer is **optional** — runs fully offline by default
 
 ---
 
-## Docker
+## 🌍 Supported Regions
+
+<details>
+<summary>Click to expand — 60+ regions supported</summary>
+
+| Region | Code | Region | Code |
+|--------|------|--------|------|
+| Argentina | `ar` | Japan | `jp` |
+| Australia | `au` | Malaysia | `my` |
+| Austria | `at` | Mexico | `mx` |
+| Belgium | `be` | Netherlands | `nl` |
+| Brazil | `br` | New Zealand | `nz` |
+| Canada | `ca` | Nigeria | `ng` |
+| Chile | `cl` | Norway | `no` |
+| China | `cn` | Pakistan | `pk` |
+| Colombia | `co` | Peru | `pe` |
+| Czech Republic | `cz` | Philippines | `ph` |
+| Denmark | `dk` | Poland | `pl` |
+| Egypt | `eg` | Portugal | `pt` |
+| Finland | `fi` | Qatar | `qa` |
+| France | `fr` | Romania | `ro` |
+| Germany | `de` | Saudi Arabia | `sa` |
+| Greece | `gr` | Singapore | `sg` |
+| Hong Kong | `hk` | South Africa | `za` |
+| Hungary | `hu` | South Korea | `kr` |
+| India | `in` | Spain | `es` |
+| Indonesia | `id` | Sweden | `se` |
+| Ireland | `ie` | Switzerland | `ch` |
+| Israel | `il` | Taiwan | `tw` |
+| Italy | `it` | Thailand | `th` |
+| Jordan | `jo` | Turkey | `tr` |
+| Kenya | `ke` | United Arab Emirates | `ae` |
+| Kuwait | `kw` | United Kingdom | `gb` |
+| Latvia | `lv` | United States | `us` |
+| Lithuania | `lt` | Venezuela | `ve` |
+| Luxembourg | `lu` | Vietnam | `vn` |
+
+</details>
+
+---
+
+## 🐳 Docker
 
 ```bash
-docker compose up                                          # Argentina (default)
-docker compose run yahoo-crawler python run.py Belgium     # custom region
+# Default: scrape Argentina
+docker compose up
+
+# Custom region
+docker compose run yahoo-crawler python run.py Brazil
+
+# MCP server via HTTP (for remote clients)
+MCP_TRANSPORT=http MCP_PORT=8000 docker compose up
 ```
 
 Data persists to `./data/outputs/` on the host.
 
 ---
 
-## Development
-
-```bash
-uv sync
-uv run pytest tests/ -v    # 105 tests, no browser, no network
-```
-
-### Project structure
-
-```
-src/
-  scraper/     ScraperEngine (Selenium+BS4) + ScrapeManager (background workers)
-  storage/     DuckDB schema + StockRepository
-  services/    MarketService (SWR cache, freshness, dynamic TTL)
-  ai/          AIProvider abstraction + LocalProvider + cloud providers
-  mcp/         Tool handlers + stdio/HTTP transports
-  app/         CLI orchestrator + factories
-  config/      Chrome options
-tests/         One test file per module, TDD throughout
-mcp_server.py  MCP entrypoint
-run.py         CLI entrypoint
-```
-
-See [docs/extending-providers.md](docs/extending-providers.md) to add a new AI provider or data source.
-
----
-
-## Environment variables
+## ⚙️ Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AI_PROVIDER` | `local` | `local`, `claude`, `openai`, `perplexity` |
 | `MCP_TRANSPORT` | `stdio` | `stdio` or `http` |
 | `MCP_PORT` | `8000` | HTTP transport port |
-| `ANTHROPIC_API_KEY` | — | Claude provider |
-| `OPENAI_API_KEY` | — | OpenAI provider |
-| `PERPLEXITY_API_KEY` | — | Perplexity provider |
+| `ANTHROPIC_API_KEY` | — | Required for `claude` provider |
+| `OPENAI_API_KEY` | — | Required for `openai` provider |
+| `PERPLEXITY_API_KEY` | — | Required for `perplexity` provider |
 | `ANTHROPIC_MODEL` | `claude-haiku-4-5-20251001` | Claude model override |
 | `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model override |
-| `CHROME_BIN` | — | Chromium binary (Docker) |
-| `CHROMEDRIVER_BIN` | `/usr/bin/chromedriver` | ChromeDriver path (Docker) |
+| `DUCKDB_PATH` | `data/market.duckdb` | Custom database path |
 
 ---
 
-## License
+## 🧪 Development
 
-MIT
+```bash
+uv sync
+python -m pytest tests/ -v      # 109 tests, no browser, no network
+uv run ruff check src/ tests/   # lint
+```
+
+### Project structure
+
+```
+src/
+  scraper/    ScraperEngine (HTTP) + ScrapeManager (background workers)
+  storage/    DuckDB schema + StockRepository
+  services/   MarketService (SWR cache, freshness, dynamic TTL)
+  ai/         AIProvider abstraction + LocalProvider + cloud providers
+  mcp/        Tool handlers + stdio/HTTP transports
+  app/        CLI orchestrator + factories
+tests/        One test file per module, TDD throughout
+mcp_server.py MCP entrypoint
+run.py        CLI entrypoint
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, rules, and how to add a new AI provider or data source.
+
+```bash
+# Fork, clone, and get started
+git checkout -b feat/your-feature
+uv sync
+python -m pytest tests/   # must be green before opening a PR
+```
+
+---
+
+## 📄 License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+<div align="center">
+
+**Built by [Matheus Fernandes](https://github.com/MatheusFernandesDuarte)**
+
+[![GitHub](https://img.shields.io/badge/GitHub-MatheusFernandesDuarte-181717?logo=github)](https://github.com/MatheusFernandesDuarte)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-matheusfernandesduarte-0A66C2?logo=linkedin)](https://www.linkedin.com/in/matheusfernandesduarte/)
+[![X](https://img.shields.io/badge/X-matheusfeeer__-000000?logo=x)](https://x.com/matheusfeeer_)
+
+*If this project helped you, consider giving it a ⭐*
+
+</div>

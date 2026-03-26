@@ -3,16 +3,16 @@
 All HTTP calls are mocked — no network required.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from src.scraper.engine import ScraperEngine, _REGION_CODES
-
+from src.scraper.engine import ScraperEngine
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_engine() -> ScraperEngine:
     session = MagicMock()
@@ -30,22 +30,24 @@ def mock_response(json_data=None, text="", status_code=200):
 
 SAMPLE_SCREENER_RESPONSE = {
     "finance": {
-        "result": [{
-            "quotes": [
-                {
-                    "symbol": "AAPL.BA",
-                    "longName": "Apple Inc.",
-                    "regularMarketPrice": 150.0,
-                    "regularMarketChangePercent": 1.25,
-                },
-                {
-                    "symbol": "MSFT.BA",
-                    "longName": "Microsoft Corp.",
-                    "regularMarketPrice": 320.5,
-                    "regularMarketChangePercent": -0.75,
-                },
-            ]
-        }]
+        "result": [
+            {
+                "quotes": [
+                    {
+                        "symbol": "AAPL.BA",
+                        "longName": "Apple Inc.",
+                        "regularMarketPrice": 150.0,
+                        "regularMarketChangePercent": 1.25,
+                    },
+                    {
+                        "symbol": "MSFT.BA",
+                        "longName": "Microsoft Corp.",
+                        "regularMarketPrice": 320.5,
+                        "regularMarketChangePercent": -0.75,
+                    },
+                ]
+            }
+        ]
     }
 }
 
@@ -53,6 +55,7 @@ SAMPLE_SCREENER_RESPONSE = {
 # ---------------------------------------------------------------------------
 # _to_region_code
 # ---------------------------------------------------------------------------
+
 
 def test_to_region_code_known_region():
     assert ScraperEngine._to_region_code("Argentina") == "ar"
@@ -80,6 +83,7 @@ def test_to_region_code_unknown_too_short_raises():
 # _parse_response
 # ---------------------------------------------------------------------------
 
+
 def test_parse_response_extracts_symbol_name_price_change_pct():
     engine = make_engine()
     results = engine._parse_response(SAMPLE_SCREENER_RESPONSE)
@@ -98,26 +102,28 @@ def test_parse_response_negative_change_pct():
 
 def test_parse_response_missing_change_pct_returns_empty_string():
     engine = make_engine()
-    data = {"finance": {"result": [{"quotes": [
-        {"symbol": "X", "longName": "X Corp", "regularMarketPrice": 10.0}
-    ]}]}}
+    data = {
+        "finance": {
+            "result": [
+                {"quotes": [{"symbol": "X", "longName": "X Corp", "regularMarketPrice": 10.0}]}
+            ]
+        }
+    }
     results = engine._parse_response(data)
     assert results[0]["change_pct"] == ""
 
 
 def test_parse_response_skips_rows_without_symbol():
     engine = make_engine()
-    data = {"finance": {"result": [{"quotes": [
-        {"longName": "No Symbol", "regularMarketPrice": 10.0}
-    ]}]}}
+    data = {
+        "finance": {"result": [{"quotes": [{"longName": "No Symbol", "regularMarketPrice": 10.0}]}]}
+    }
     assert engine._parse_response(data) == []
 
 
 def test_parse_response_skips_rows_without_price():
     engine = make_engine()
-    data = {"finance": {"result": [{"quotes": [
-        {"symbol": "SYM", "longName": "Some Co"}
-    ]}]}}
+    data = {"finance": {"result": [{"quotes": [{"symbol": "SYM", "longName": "Some Co"}]}]}}
     assert engine._parse_response(data) == []
 
 
@@ -130,9 +136,13 @@ def test_parse_response_returns_empty_on_malformed_response():
 
 def test_parse_response_uses_shortname_fallback():
     engine = make_engine()
-    data = {"finance": {"result": [{"quotes": [
-        {"symbol": "SYM", "shortName": "Short Co", "regularMarketPrice": 5.0}
-    ]}]}}
+    data = {
+        "finance": {
+            "result": [
+                {"quotes": [{"symbol": "SYM", "shortName": "Short Co", "regularMarketPrice": 5.0}]}
+            ]
+        }
+    }
     results = engine._parse_response(data)
     assert results[0]["name"] == "Short Co"
 
@@ -141,11 +151,12 @@ def test_parse_response_uses_shortname_fallback():
 # _authenticate
 # ---------------------------------------------------------------------------
 
+
 def test_authenticate_sets_crumb():
     engine = make_engine()
     engine._session.get.side_effect = [
-        mock_response(),                  # consent GET
-        mock_response(text="test-crumb"), # crumb GET
+        mock_response(),  # consent GET
+        mock_response(text="test-crumb"),  # crumb GET
     ]
     engine._authenticate()
     assert engine._crumb == "test-crumb"
@@ -164,6 +175,7 @@ def test_authenticate_raises_if_crumb_empty():
 # ---------------------------------------------------------------------------
 # _fetch_page
 # ---------------------------------------------------------------------------
+
 
 def test_fetch_page_posts_to_screener_with_crumb():
     engine = make_engine()
@@ -192,6 +204,7 @@ def test_fetch_page_passes_offset():
 # ---------------------------------------------------------------------------
 # _fetch_all_pages (pagination)
 # ---------------------------------------------------------------------------
+
 
 def test_fetch_all_pages_stops_when_batch_smaller_than_page_size():
     engine = make_engine()
@@ -231,6 +244,7 @@ def test_fetch_all_pages_paginates_until_short_page():
 # ---------------------------------------------------------------------------
 # scrape (full flow)
 # ---------------------------------------------------------------------------
+
 
 def test_scrape_authenticates_then_fetches():
     engine = make_engine()

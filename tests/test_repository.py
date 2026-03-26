@@ -10,15 +10,16 @@ import pytest
 from src.storage.database import bootstrap_schema
 from src.storage.repository import StockRepository
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def repo():
     """Return a StockRepository backed by an in-memory DuckDB instance."""
     import duckdb
+
     conn = duckdb.connect(":memory:")
     bootstrap_schema(conn)
     return StockRepository(conn)
@@ -27,6 +28,7 @@ def repo():
 # ---------------------------------------------------------------------------
 # Schema bootstrap
 # ---------------------------------------------------------------------------
+
 
 def test_bootstrap_creates_stocks_table(repo):
     tables = {row[0] for row in repo.conn.execute("SHOW TABLES").fetchall()}
@@ -37,6 +39,7 @@ def test_bootstrap_creates_stocks_table(repo):
 # ---------------------------------------------------------------------------
 # insert_batch
 # ---------------------------------------------------------------------------
+
 
 def test_insert_batch_writes_rows(repo):
     rows = [
@@ -89,6 +92,7 @@ def test_insert_batch_multiple_regions_isolated(repo):
 # get_latest_by_region
 # ---------------------------------------------------------------------------
 
+
 def test_get_latest_by_region_returns_most_recent_snapshot(repo):
     old_ts = datetime(2026, 3, 24, 0, 0, 0, tzinfo=timezone.utc)
     new_ts = datetime(2026, 3, 25, 0, 0, 0, tzinfo=timezone.utc)
@@ -122,6 +126,7 @@ def test_get_latest_by_region_returns_empty_for_unknown_region(repo):
 # ---------------------------------------------------------------------------
 # region_metadata — upsert + read
 # ---------------------------------------------------------------------------
+
 
 def test_upsert_region_metadata_creates_row(repo):
     ts = datetime(2026, 3, 25, 0, 0, 0, tzinfo=timezone.utc)
@@ -170,6 +175,7 @@ def test_get_region_metadata_returns_dict(repo):
 # increment_access_count
 # ---------------------------------------------------------------------------
 
+
 def test_increment_access_count_increases_counter(repo):
     ts = datetime(2026, 3, 25, 0, 0, 0, tzinfo=timezone.utc)
     repo.upsert_region_metadata("Argentina", ts, ttl_seconds=3600)
@@ -189,6 +195,7 @@ def test_increment_access_count_no_ops_on_missing_region(repo):
 # get_top_movers
 # ---------------------------------------------------------------------------
 
+
 def test_get_top_movers_returns_n_highest_price(repo):
     ts = datetime(2026, 3, 25, 0, 0, 0, tzinfo=timezone.utc)
     rows = [{"symbol": str(i), "name": f"Co {i}", "price": str(float(i * 10))} for i in range(1, 6)]
@@ -196,7 +203,7 @@ def test_get_top_movers_returns_n_highest_price(repo):
 
     top = repo.get_top_movers("Belgium", n=3)
     assert len(top) == 3
-    assert top[0]["symbol"] == "5"   # highest price first
+    assert top[0]["symbol"] == "5"  # highest price first
 
 
 def test_get_top_movers_returns_empty_for_unknown_region(repo):
@@ -206,6 +213,7 @@ def test_get_top_movers_returns_empty_for_unknown_region(repo):
 # ---------------------------------------------------------------------------
 # search_symbol
 # ---------------------------------------------------------------------------
+
 
 def test_search_symbol_finds_exact_match(repo):
     ts = datetime(2026, 3, 25, 0, 0, 0, tzinfo=timezone.utc)
@@ -219,7 +227,9 @@ def test_search_symbol_finds_exact_match(repo):
 def test_search_symbol_finds_partial_match(repo):
     ts = datetime(2026, 3, 25, 0, 0, 0, tzinfo=timezone.utc)
     repo.insert_batch("Argentina", [{"symbol": "AAPL.BA", "name": "Apple", "price": "150.0"}], ts)
-    repo.insert_batch("Belgium", [{"symbol": "AAPL.BR", "name": "Apple Belgium", "price": "155.0"}], ts)
+    repo.insert_batch(
+        "Belgium", [{"symbol": "AAPL.BR", "name": "Apple Belgium", "price": "155.0"}], ts
+    )
 
     results = repo.search_symbol("AAPL")
     symbols = {r["symbol"] for r in results}

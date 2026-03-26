@@ -4,7 +4,7 @@ from typing import Callable
 
 import requests
 
-from src.scraper.engine import ScraperEngine, _HEADERS
+from src.scraper.engine import _HEADERS, ScraperEngine
 from src.services.yahoo_finance_service import YahooFinanceService
 
 
@@ -14,6 +14,7 @@ def create_engine_factory() -> Callable[[], ScraperEngine]:
     Each background scrape gets its own requests.Session so sessions
     don't share cookies or crumb state across concurrent workers.
     """
+
     def factory() -> ScraperEngine:
         session = requests.Session()
         session.headers.update(_HEADERS)
