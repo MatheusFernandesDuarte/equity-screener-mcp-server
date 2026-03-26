@@ -1,10 +1,10 @@
 <div align="center">
 
-# 📈 Yahoo Finance Regional Crawler
+# 📈 Equity Screener MCP Server
 
 **Give your AI assistant real stock market data — from any country, in seconds.**
 
-[![CI](https://github.com/MatheusFernandesDuarte/yahoo-finance-regional-crawler/actions/workflows/ci.yml/badge.svg)](https://github.com/MatheusFernandesDuarte/yahoo-finance-regional-crawler/actions/workflows/ci.yml)
+[![CI](https://github.com/MatheusFernandesDuarte/equity-screener-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/MatheusFernandesDuarte/equity-screener-mcp-server/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-enabled-7c3aed?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io)
@@ -28,7 +28,7 @@ When you ask an AI assistant *"Which stocks spiked in Brazil today?"*, it either
 - ❌ Refuses: *"I don't have access to real-time data"*
 - ❌ Hallucinates: Makes up tickers with confident-sounding prices
 
-**This project solves that.** It scrapes Yahoo Finance equity data for any region, stores it locally in DuckDB, and exposes it as MCP tools that AI agents can call directly.
+**This project solves that.** It fetches equity screener data for any region, stores it locally in DuckDB, and exposes it as MCP tools that AI agents can call directly.
 
 ```
 You:    "Which stock spiked the most in Argentina today?"
@@ -58,8 +58,8 @@ Real data. No hallucinations. No browser needed.
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/MatheusFernandesDuarte/yahoo-finance-regional-crawler.git
-cd yahoo-finance-regional-crawler
+git clone https://github.com/MatheusFernandesDuarte/equity-screener-mcp-server.git
+cd equity-screener-mcp-server
 
 # 2. Install dependencies
 uv sync
@@ -80,7 +80,7 @@ Output goes to `data/outputs/` (CSV) and `data/market.duckdb`.
 ### Claude Code (recommended)
 
 ```bash
-claude mcp add yahoo-finance -- python /path/to/yahoo-finance-regional-crawler/mcp_server.py
+claude mcp add yahoo-finance -- python /path/to/equity-screener-mcp-server/mcp_server.py
 ```
 
 ### Claude Desktop
@@ -92,7 +92,7 @@ Add to `~/.claude/claude_desktop_config.json`:
   "mcpServers": {
     "yahoo-finance": {
       "command": "python",
-      "args": ["/path/to/yahoo-finance-regional-crawler/mcp_server.py"],
+      "args": ["/path/to/equity-screener-mcp-server/mcp_server.py"],
       "env": {
         "AI_PROVIDER": "local"
       }
@@ -108,7 +108,7 @@ Add to `~/.claude/claude_desktop_config.json`:
   "mcpServers": {
     "yahoo-finance": {
       "command": "python",
-      "args": ["/path/to/yahoo-finance-regional-crawler/mcp_server.py"],
+      "args": ["/path/to/equity-screener-mcp-server/mcp_server.py"],
       "env": {
         "AI_PROVIDER": "claude",
         "ANTHROPIC_API_KEY": "sk-ant-..."
@@ -188,8 +188,8 @@ python mcp_server.py
 └──────────────────────────────────────────────────────┘
           ↓ background thread
 ┌──────────────────────────────────────────────────────┐
-│  ScraperEngine  ──→  Yahoo Finance API  (HTTP)       │
-│     Auth: GET finance.yahoo.com → cookies → crumb    │
+│  ScraperEngine  ──→  Equity Screener API  (HTTP)     │
+│     Auth: GET screener host → cookies → crumb        │
 │     Data: POST /v1/finance/screener (JSON)           │
 │       ↓                                              │
 │  DuckDB  (writes, single lock)                       │
@@ -252,7 +252,7 @@ python mcp_server.py
 docker compose up
 
 # Custom region
-docker compose run yahoo-crawler python run.py Brazil
+docker compose run equity-screener python run.py Brazil
 
 # MCP server via HTTP (for remote clients)
 MCP_TRANSPORT=http MCP_PORT=8000 docker compose up

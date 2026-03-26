@@ -3,8 +3,8 @@
 ## Setup
 
 ```bash
-git clone https://github.com/MatheusFernandesDuarte/yahoo-finance-regional-crawler.git
-cd yahoo-finance-regional-crawler
+git clone https://github.com/MatheusFernandesDuarte/equity-screener-mcp-server.git
+cd equity-screener-mcp-server
 uv sync
 uv run pytest tests/ -v    # verify everything passes
 ```

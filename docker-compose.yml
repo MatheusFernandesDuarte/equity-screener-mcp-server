@@ -1,10 +1,10 @@
 services:
-  yahoo-crawler:
+  equity-screener:
     build:
       context: .
       dockerfile: Dockerfile
-    image: yahoo-crawler:latest
-    container_name: yahoo_finance_crawler
+    image: equity-screener:latest
+    container_name: equity_screener
     volumes:
       - ./data/outputs:/app/data/outputs
     environment:
