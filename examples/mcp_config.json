@@ -3,7 +3,7 @@
     "yahoo-finance": {
       "command": "python",
       "args": ["mcp_server.py"],
-      "cwd": "/path/to/yahoo-finance-regional-crawler",
+      "cwd": "/path/to/equity-screener-mcp-server",
       "env": {
         "MCP_TRANSPORT": "stdio",
         "AI_PROVIDER": "local"

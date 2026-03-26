@@ -1,11 +1,11 @@
 [project]
-name = "yahoo-finance-regional-crawler"
+name = "equity-screener-mcp-server"
 version = "0.1.0"
-description = "AI-native, MCP-enabled regional stock data service powered by Yahoo Finance"
+description = "AI-native, MCP-enabled regional equity screener with DuckDB persistence"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-keywords = ["yahoo-finance", "mcp", "stocks", "scraper", "ai"]
+keywords = ["equity-screener", "mcp", "stocks", "finance", "ai"]
 dependencies = [
     "anthropic>=0.40.0",
     "bs4>=0.0.2",
