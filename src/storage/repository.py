@@ -36,11 +36,25 @@ class StockRepository:
                 price = float(Decimal(price_str))
             except (InvalidOperation, ValueError):
                 continue
-            records.append((region, row.get("symbol", ""), row.get("name", ""), price, ts))
+
+            change_pct_str = row.get("change_pct", "").replace(",", "").strip()
+            try:
+                change_pct: float | None = float(Decimal(change_pct_str)) if change_pct_str else None
+            except (InvalidOperation, ValueError):
+                change_pct = None
+
+            records.append((
+                region,
+                row.get("symbol", ""),
+                row.get("name", ""),
+                price,
+                change_pct,
+                ts,
+            ))
 
         if records:
             self.conn.executemany(
-                "INSERT INTO stocks (region, symbol, name, price, scraped_at) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO stocks (region, symbol, name, price, change_pct, scraped_at) VALUES (?, ?, ?, ?, ?, ?)",
                 records,
             )
 
@@ -111,23 +125,45 @@ class StockRepository:
             "ttl_seconds": row[3],
         }
 
-    def get_top_movers(self, region: str, n: int = 10) -> list[dict]:
-        """Return the top N stocks by price from the latest snapshot for a region."""
+    def get_top_movers(self, region: str, n: int = 10, sort_by: str = "price") -> list[dict]:
+        """Return the top N stocks from the latest snapshot, sorted by price or change_pct."""
+        order_col = "change_pct" if sort_by == "change_pct" else "price"
         result = self.conn.execute(
-            """
-            SELECT symbol, name, price
+            f"""
+            SELECT symbol, name, price, change_pct
             FROM stocks
             WHERE region = ?
               AND scraped_at = (
                   SELECT MAX(scraped_at) FROM stocks WHERE region = ?
               )
-            ORDER BY price DESC
+              AND {order_col} IS NOT NULL
+            ORDER BY {order_col} DESC
             LIMIT ?
             """,
             [region, region, n],
         ).fetchall()
 
-        return [{"symbol": r[0], "name": r[1], "price": float(r[2])} for r in result]
+        return [
+            {
+                "symbol": r[0],
+                "name": r[1],
+                "price": float(r[2]) if r[2] is not None else None,
+                "change_pct": float(r[3]) if r[3] is not None else None,
+            }
+            for r in result
+        ]
+
+    def get_count_by_region(self, region: str) -> int:
+        """Return the number of stocks in the latest snapshot for a region."""
+        row = self.conn.execute(
+            """
+            SELECT COUNT(*) FROM stocks
+            WHERE region = ?
+              AND scraped_at = (SELECT MAX(scraped_at) FROM stocks WHERE region = ?)
+            """,
+            [region, region],
+        ).fetchone()
+        return row[0] if row else 0
 
     def search_symbol(self, symbol: str) -> list[dict]:
         """Search for a symbol (case-insensitive partial match) across all regions.

@@ -19,7 +19,25 @@
       "Bash(python -m pytest tests/test_market_service.py --tb=line -q)",
       "Bash(python -m pytest tests/test_ai_providers.py --tb=line -q)",
       "Bash(python -m pytest tests/ -q)",
-      "Bash(python -m pytest tests/test_mcp_tools.py --tb=line -q)"
+      "Bash(python -m pytest tests/test_mcp_tools.py --tb=line -q)",
+      "Bash(uv lock:*)",
+      "Bash(python -c \"from webdriver_manager.chrome import ChromeDriverManager; path = ChromeDriverManager\\(\\).install\\(\\); print\\(''ChromeDriver path:'', path\\)\")",
+      "Bash(reg query:*)",
+      "Bash(\"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\" --version)",
+      "Bash(powershell -command \"\\(Get-Item ''C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe''\\).VersionInfo.FileVersion\")",
+      "Bash(python -c \":*)",
+      "Bash(claude mcp:*)",
+      "Bash(taskkill /PID 38256 /F)",
+      "Bash(powershell -command \"Stop-Process -Id 38256 -Force -ErrorAction SilentlyContinue; Write-Output ''done''\")",
+      "mcp__yahoo-finance__get_market_summary",
+      "mcp__yahoo-finance__trigger_refresh",
+      "mcp__yahoo-finance__get_stocks_by_region",
+      "mcp__yahoo-finance__get_top_movers",
+      "mcp__yahoo-finance__search_symbol",
+      "WebFetch(domain:finance.yahoo.com)",
+      "Bash(python _debug_api.py)",
+      "Bash(python -:*)",
+      "Bash(2)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Mathe\\Documents\\yahoo_finance_service\\docs\\superpowers"

@@ -65,7 +65,8 @@ def ai_provider():
 def test_get_stocks_returns_region_and_data(service, ai_provider):
     result = handle_get_stocks_by_region(service, "Argentina")
     assert result["region"] == "Argentina"
-    assert result["stocks"] == STOCKS
+    assert "total_stocks" in result
+    assert "sample_top10_by_price" in result
 
 
 def test_get_stocks_includes_freshness(service, ai_provider):
@@ -95,7 +96,7 @@ def test_get_top_movers_returns_region_and_movers(service, ai_provider):
 
 def test_get_top_movers_passes_n_to_service(service, ai_provider):
     handle_get_top_movers(service, "Argentina", n=3)
-    service.get_top_movers.assert_called_once_with("Argentina", 3)
+    service.get_top_movers.assert_called_once_with("Argentina", 3, "price")
 
 
 # ---------------------------------------------------------------------------
@@ -146,22 +147,19 @@ def test_get_market_summary_calls_ai_provider_analyze(service, ai_provider):
 # ---------------------------------------------------------------------------
 
 def test_trigger_refresh_returns_queued_true_when_submitted(service, ai_provider):
-    service.scrape_manager = MagicMock()
-    service.scrape_manager.submit.return_value = True
+    service.trigger_refresh.return_value = True
     result = handle_trigger_refresh(service, "Argentina")
     assert result["queued"] is True
     assert result["region"] == "Argentina"
 
 
 def test_trigger_refresh_returns_queued_false_for_duplicate(service, ai_provider):
-    service.scrape_manager = MagicMock()
-    service.scrape_manager.submit.return_value = False
+    service.trigger_refresh.return_value = False
     result = handle_trigger_refresh(service, "Argentina")
     assert result["queued"] is False
 
 
 def test_trigger_refresh_includes_message(service, ai_provider):
-    service.scrape_manager = MagicMock()
-    service.scrape_manager.submit.return_value = True
+    service.trigger_refresh.return_value = True
     result = handle_trigger_refresh(service, "Argentina")
     assert "message" in result

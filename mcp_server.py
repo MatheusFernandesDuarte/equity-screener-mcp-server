@@ -20,6 +20,11 @@ Claude Desktop / Claude Code config example:
 """
 
 import os
+import sys
+from pathlib import Path
+
+# Ensure the project root is on sys.path so imports work regardless of cwd
+sys.path.insert(0, str(Path(__file__).parent))
 
 from src.ai.factory import get_provider
 from src.app.factories import create_engine_factory

@@ -169,7 +169,7 @@ def test_get_stocks_increments_access_count(service, repo):
 def test_get_top_movers_delegates_to_repo(service, repo):
     repo.get_top_movers.return_value = SAMPLE_ROWS[:1]
     result = service.get_top_movers("Argentina", n=5)
-    repo.get_top_movers.assert_called_once_with("Argentina", 5)
+    repo.get_top_movers.assert_called_once_with("Argentina", 5, "price")
     assert result == SAMPLE_ROWS[:1]
 
 
