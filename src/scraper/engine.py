@@ -1,199 +1,240 @@
-"""ScraperEngine — the only module in the codebase that touches Selenium.
+"""ScraperEngine — HTTP-based Yahoo Finance equity screener client.
 
-All browser interaction, region selection, pagination, and HTML parsing
-lives here. Nothing outside this module may import or instantiate a WebDriver.
+Uses the internal Yahoo Finance screener API (query1.finance.yahoo.com).
+No browser required. Auth flow: GET finance.yahoo.com → cookies,
+GET /v1/test/getcrumb → crumb token, POST screener with crumb + cookie.
 """
 
-import time
+import requests
 
-from bs4 import BeautifulSoup, Tag
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+# ---------------------------------------------------------------------------
+# Region name → Yahoo Finance region code mapping
+# ---------------------------------------------------------------------------
+
+_REGION_CODES: dict[str, str] = {
+    "argentina": "ar",
+    "australia": "au",
+    "austria": "at",
+    "belgium": "be",
+    "brazil": "br",
+    "canada": "ca",
+    "chile": "cl",
+    "china": "cn",
+    "colombia": "co",
+    "czech republic": "cz",
+    "denmark": "dk",
+    "egypt": "eg",
+    "estonia": "ee",
+    "finland": "fi",
+    "france": "fr",
+    "germany": "de",
+    "greece": "gr",
+    "hong kong": "hk",
+    "hungary": "hu",
+    "iceland": "is",
+    "india": "in",
+    "indonesia": "id",
+    "ireland": "ie",
+    "israel": "il",
+    "italy": "it",
+    "japan": "jp",
+    "jordan": "jo",
+    "kenya": "ke",
+    "kuwait": "kw",
+    "latvia": "lv",
+    "lithuania": "lt",
+    "luxembourg": "lu",
+    "malaysia": "my",
+    "mexico": "mx",
+    "morocco": "ma",
+    "netherlands": "nl",
+    "new zealand": "nz",
+    "nigeria": "ng",
+    "norway": "no",
+    "pakistan": "pk",
+    "peru": "pe",
+    "philippines": "ph",
+    "poland": "pl",
+    "portugal": "pt",
+    "qatar": "qa",
+    "romania": "ro",
+    "russia": "ru",
+    "saudi arabia": "sa",
+    "singapore": "sg",
+    "south africa": "za",
+    "south korea": "kr",
+    "spain": "es",
+    "sri lanka": "lk",
+    "sweden": "se",
+    "switzerland": "ch",
+    "taiwan": "tw",
+    "thailand": "th",
+    "turkey": "tr",
+    "united arab emirates": "ae",
+    "united kingdom": "gb",
+    "united states": "us",
+    "venezuela": "ve",
+    "vietnam": "vn",
+}
+
+_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
+
+# Used for all requests (API calls need Accept: application/json)
+_HEADERS = {
+    "User-Agent": _UA,
+    "Accept": "application/json, */*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Referer": "https://finance.yahoo.com/",
+    "Origin": "https://finance.yahoo.com",
+}
+
+# Used only for the initial finance.yahoo.com GET — must look like a browser
+# to get the A1/A3 session cookies set correctly.
+_BROWSER_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+
+_CONSENT_URL = "https://finance.yahoo.com"
+_CRUMB_URL = "https://query1.finance.yahoo.com/v1/test/getcrumb"
+_SCREENER_URL = "https://query1.finance.yahoo.com/v1/finance/screener"
+_PAGE_SIZE = 250
 
 
 class ScraperEngine:
-    """Drives a headless Chrome session to scrape Yahoo Finance equity data."""
+    """Fetches Yahoo Finance equity screener data via HTTP — no browser needed."""
 
-    BASE_URL: str = "https://finance.yahoo.com/research-hub/screener/equity/"
-
-    def __init__(self, driver: WebDriver) -> None:
-        self.driver: WebDriver = driver
-        self.wait: WebDriverWait = WebDriverWait(driver, 15)
+    def __init__(self, session: requests.Session) -> None:
+        self._session = session
+        self._crumb: str | None = None
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def scrape(self, region: str) -> list[dict[str, str]]:
-        """Navigate to the screener, apply region filter, and return all rows."""
-        self.driver.get(self.BASE_URL)
-        self._select_and_cleanup_region(region)
-        self._set_rows_to_100()
-        return self._extract_all_pages()
+        """Authenticate (if needed) and return all equity rows for a region."""
+        if not self._crumb:
+            self._authenticate()
+        region_code = self._to_region_code(region)
+        return self._fetch_all_pages(region_code)
 
     # ------------------------------------------------------------------
-    # Browser interaction
+    # Auth
     # ------------------------------------------------------------------
 
-    def _select_and_cleanup_region(self, target_region: str) -> None:
-        """Select the target region and deselect all others."""
-        if target_region == "United States":
-            return
+    def _authenticate(self) -> None:
+        """Obtain session cookies and crumb from Yahoo Finance.
 
-        region_btn: WebElement = self.wait.until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-ylk*='slk:Region']"))
+        The initial GET must use a browser-like Accept header so Yahoo sets
+        the A1/A3 session cookies correctly. Without it, getcrumb returns 401.
+        """
+        self._session.get(
+            _CONSENT_URL,
+            headers={"Accept": _BROWSER_ACCEPT},
+            timeout=15,
         )
-        region_btn.click()
-
-        options_container: WebElement = self.wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div.options"))
-        )
-        labels: list[WebElement] = options_container.find_elements(By.TAG_NAME, "label")
-
-        target_checkbox: WebElement | None = None
-
-        for label in labels:
-            name: str = label.find_element(By.TAG_NAME, "span").text.strip()
-            checkbox: WebElement = label.find_element(By.TAG_NAME, "input")
-            if name.lower() == target_region.lower():
-                target_checkbox = checkbox
-                break
-
-        if not target_checkbox:
-            available: list[str] = [
-                label.find_element(By.TAG_NAME, "span").text for label in labels
-            ]
-            raise ValueError(f"Region '{target_region}' not found. Available: {available}")
-
-        if not target_checkbox.is_selected():
-            self.driver.execute_script("arguments[0].click()", target_checkbox)
-            time.sleep(0.3)
-
-        for label in labels:
-            name = label.find_element(By.TAG_NAME, "span").text.strip()
-            checkbox = label.find_element(By.TAG_NAME, "input")
-            if name.lower() != target_region.lower() and checkbox.is_selected():
-                self.driver.execute_script("arguments[0].click()", checkbox)
-                time.sleep(0.2)
-
-        apply_btn: WebElement = self.wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "button[aria-label='Apply']"))
-        )
-        self.driver.execute_script(
-            """
-            arguments[0].dispatchEvent(new Event('change', { bubbles: true }));
-            arguments[0].dispatchEvent(new Event('blur',   { bubbles: true }));
-            """,
-            apply_btn,
-        )
-        self.wait.until(lambda d: not apply_btn.get_attribute("disabled"))
-        self.driver.execute_script(
-            "arguments[0].scrollIntoView({block: 'center'});", apply_btn
-        )
-        time.sleep(0.3)
-        self.driver.execute_script("arguments[0].click()", apply_btn)
-        time.sleep(2)
-
-    def _set_rows_to_100(self) -> None:
-        """Set the rows-per-page dropdown to 100 if it is not already."""
-        try:
-            dropdown_btn: WebElement = self.wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "div.select-dropdown button"))
+        resp = self._session.get(_CRUMB_URL, timeout=10)
+        resp.raise_for_status()
+        crumb = resp.text.strip()
+        if not crumb or crumb.startswith("{"):
+            raise RuntimeError(
+                f"Failed to obtain Yahoo Finance crumb token. Response: {crumb[:100]}"
             )
-            if "100" in dropdown_btn.text.strip():
-                return
-            self.driver.execute_script(
-                "arguments[0].scrollIntoView({block: 'center'});", dropdown_btn
-            )
-            time.sleep(0.5)
-            self.driver.execute_script("arguments[0].click();", dropdown_btn)
-            option_100: WebElement = self.wait.until(
-                EC.element_to_be_clickable(
-                    (By.CSS_SELECTOR, "div[role='option'][data-value='100']")
-                )
-            )
-            self.driver.execute_script("arguments[0].click();", option_100)
-            time.sleep(3)
-        except Exception:
-            pass
+        self._crumb = crumb
 
-    def _extract_all_pages(self) -> list[dict[str, str]]:
-        """Iterate through all result pages and aggregate rows."""
-        all_data: list[dict[str, str]] = []
+    # ------------------------------------------------------------------
+    # Pagination
+    # ------------------------------------------------------------------
+
+    def _fetch_all_pages(self, region_code: str) -> list[dict[str, str]]:
+        all_rows: list[dict[str, str]] = []
+        offset = 0
         while True:
-            page_data = self._extract_table()
-            if not page_data:
+            batch = self._fetch_page(region_code, offset)
+            if not batch:
                 break
-            all_data.extend(page_data)
-            try:
-                next_btn: WebElement = self.driver.find_element(
-                    By.CSS_SELECTOR, "button[data-testid='next-page-button']"
-                )
-                disabled = next_btn.get_attribute("disabled") is not None or "disabled" in (
-                    next_btn.get_attribute("class") or ""
-                )
-                if disabled:
-                    break
-                self.driver.execute_script(
-                    "arguments[0].scrollIntoView({block: 'center'});", next_btn
-                )
-                time.sleep(0.5)
-                self.driver.execute_script("arguments[0].click();", next_btn)
-                time.sleep(4)
-            except Exception:
+            all_rows.extend(batch)
+            if len(batch) < _PAGE_SIZE:
                 break
-        return all_data
+            offset += _PAGE_SIZE
+        return all_rows
 
-    def _extract_table(self) -> list[dict[str, str]]:
-        """Wait for the table to render then parse the current page source."""
+    def _fetch_page(self, region_code: str, offset: int) -> list[dict[str, str]]:
+        payload = {
+            "size": _PAGE_SIZE,
+            "offset": offset,
+            "sortField": "intradaymarketcap",
+            "sortType": "DESC",
+            "quoteType": "EQUITY",
+            "query": {
+                "operator": "and",
+                "operands": [
+                    {"operator": "eq", "operands": ["region", region_code]}
+                ],
+            },
+            "userId": "",
+            "userIdType": "guid",
+        }
+        params = {
+            "crumb": self._crumb,
+            "lang": "en-US",
+            "region": "US",
+            "formatted": "false",
+            "corsDomain": "finance.yahoo.com",
+        }
+        resp = self._session.post(
+            _SCREENER_URL, params=params, json=payload, timeout=30
+        )
+        resp.raise_for_status()
+        return self._parse_response(resp.json())
+
+    # ------------------------------------------------------------------
+    # Parsing
+    # ------------------------------------------------------------------
+
+    def _parse_response(self, data: dict) -> list[dict[str, str]]:
+        """Extract symbol, name, price, and change_pct from API response."""
         try:
-            self.wait.until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "table tbody tr"))
-            )
-            time.sleep(2)
-            return self._parse_table(self.driver.page_source)
-        except Exception:
+            quotes = data["finance"]["result"][0]["quotes"]
+        except (KeyError, IndexError, TypeError):
             return []
 
-    # ------------------------------------------------------------------
-    # Pure HTML parsing (no Selenium dependency — easily unit-tested)
-    # ------------------------------------------------------------------
-
-    def _parse_table(self, html: str) -> list[dict[str, str]]:
-        """Extract symbol, name, and price from a Yahoo Finance equity table."""
-        soup = BeautifulSoup(html, "html.parser")
-        rows: list[Tag] = soup.select("table tbody tr")
         results: list[dict[str, str]] = []
+        for q in quotes:
+            symbol: str = q.get("symbol", "")
+            name: str = q.get("longName") or q.get("shortName") or ""
+            price = q.get("regularMarketPrice")
+            change_pct = q.get("regularMarketChangePercent")
 
-        for row in rows:
-            try:
-                cols: list[Tag] = row.find_all("td")
-                if len(cols) < 5:
-                    continue
-
-                anchor = cols[1].find("a")
-                if not anchor:
-                    continue
-
-                symbol_span = anchor.find("span", class_="symbol")
-                symbol: str = (
-                    symbol_span.get_text(strip=True)
-                    if symbol_span
-                    else anchor.get_text(strip=True)
-                )
-
-                name: str = cols[2].get_text(strip=True)
-                if not name or name == "--":
-                    name = anchor.get("aria-label", "") or ""
-
-                price: str = cols[4].get_text(strip=True)
-
-                if symbol and price:
-                    results.append({"symbol": symbol, "name": name, "price": price})
-            except Exception:
+            if not symbol or price is None:
                 continue
 
+            results.append({
+                "symbol": symbol,
+                "name": name,
+                "price": str(price),
+                "change_pct": str(round(change_pct, 4)) if change_pct is not None else "",
+            })
         return results
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _to_region_code(region: str) -> str:
+        """Convert a region display name to a Yahoo Finance region code."""
+        code = _REGION_CODES.get(region.lower().strip())
+        if code:
+            return code
+        # Fallback: use first two chars as ISO-like code
+        normalized = region.strip().lower().replace(" ", "")
+        if len(normalized) >= 2:
+            return normalized[:2]
+        raise ValueError(
+            f"Unknown region '{region}'. "
+            f"Known regions: {sorted(_REGION_CODES.keys())}"
+        )
