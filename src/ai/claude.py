@@ -9,7 +9,6 @@ from src.ai.base import AIProvider
 
 
 class ClaudeProvider(AIProvider):
-
     def __init__(self) -> None:
         self._client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
         self._model = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
@@ -23,9 +22,7 @@ class ClaudeProvider(AIProvider):
         return msg.content[0].text
 
     def summarize(self, data: list[dict]) -> str:
-        return self._call(
-            f"Summarize this stock market data in 2-3 sentences:\n{data[:20]}"
-        )
+        return self._call(f"Summarize this stock market data in 2-3 sentences:\n{data[:20]}")
 
     def detect_anomalies(self, data: list[dict]) -> list[dict]:
         raw = self._call(

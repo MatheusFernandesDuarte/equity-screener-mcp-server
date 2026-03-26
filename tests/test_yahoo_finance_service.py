@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
+from src.scraper.engine import ScraperEngine
 from src.services import yahoo_finance_service
 from src.services.yahoo_finance_service import YahooFinanceService
-from src.scraper.engine import ScraperEngine
 
 
 @pytest.fixture
@@ -24,9 +24,13 @@ def yahoo_service(mock_engine: ScraperEngine) -> YahooFinanceService:
     return YahooFinanceService(engine=mock_engine)
 
 
-def test_export_to_csv(yahoo_service: YahooFinanceService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_export_to_csv(
+    yahoo_service: YahooFinanceService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """YahooFinanceService._export_to_csv creates a valid CSV file."""
-    test_data = [{"symbol": "TEST.BA", "name": "Test Company", "price": "100.00", "change_pct": "1.5"}]
+    test_data = [
+        {"symbol": "TEST.BA", "name": "Test Company", "price": "100.00", "change_pct": "1.5"}
+    ]
     mock_output_dir = tmp_path / "data" / "outputs"
 
     monkeypatch.setattr(

@@ -9,10 +9,10 @@ from src.ai.local import LocalProvider
 logger = logging.getLogger(__name__)
 
 _PROVIDERS = {
-    "claude":      ("src.ai.claude",           "ClaudeProvider",      "ANTHROPIC_API_KEY"),
-    "openai":      ("src.ai.openai_provider",  "OpenAIProvider",      "OPENAI_API_KEY"),
-    "perplexity":  ("src.ai.perplexity",       "PerplexityProvider",  "PERPLEXITY_API_KEY"),
-    "local":       (None,                       None,                  None),
+    "claude": ("src.ai.claude", "ClaudeProvider", "ANTHROPIC_API_KEY"),
+    "openai": ("src.ai.openai_provider", "OpenAIProvider", "OPENAI_API_KEY"),
+    "perplexity": ("src.ai.perplexity", "PerplexityProvider", "PERPLEXITY_API_KEY"),
+    "local": (None, None, None),
 }
 
 
@@ -36,6 +36,7 @@ def get_provider() -> AIProvider:
 
     try:
         import importlib
+
         module = importlib.import_module(module_path)
         cls = getattr(module, class_name)
         return cls()

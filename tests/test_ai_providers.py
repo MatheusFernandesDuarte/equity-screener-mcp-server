@@ -12,9 +12,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.ai.base import AIProvider, MarketInsight
-from src.ai.local import LocalProvider
 from src.ai.factory import get_provider
-
+from src.ai.local import LocalProvider
 
 # ---------------------------------------------------------------------------
 # Sample data
@@ -42,6 +41,7 @@ SMALL_DATA = [
 # AIProvider ABC
 # ---------------------------------------------------------------------------
 
+
 def test_ai_provider_is_abstract():
     with pytest.raises(TypeError):
         AIProvider()
@@ -62,6 +62,7 @@ def test_market_insight_is_dataclass():
 # ---------------------------------------------------------------------------
 # LocalProvider — summarize
 # ---------------------------------------------------------------------------
+
 
 def test_local_summarize_contains_count():
     provider = LocalProvider()
@@ -92,6 +93,7 @@ def test_local_summarize_handles_missing_price():
 # ---------------------------------------------------------------------------
 # LocalProvider — detect_anomalies
 # ---------------------------------------------------------------------------
+
 
 def test_local_detect_anomalies_flags_outlier():
     provider = LocalProvider()
@@ -125,6 +127,7 @@ def test_local_detect_anomalies_handles_empty_data():
 # LocalProvider — analyze_trends
 # ---------------------------------------------------------------------------
 
+
 def test_local_analyze_trends_returns_required_keys():
     provider = LocalProvider()
     trends = provider.analyze_trends(SAMPLE_DATA)
@@ -151,6 +154,7 @@ def test_local_analyze_trends_handles_empty_data():
 # LocalProvider — analyze (convenience method on base)
 # ---------------------------------------------------------------------------
 
+
 def test_analyze_returns_market_insight():
     provider = LocalProvider()
     insight = provider.analyze(SAMPLE_DATA)
@@ -162,6 +166,7 @@ def test_analyze_returns_market_insight():
 # ---------------------------------------------------------------------------
 # Factory — provider resolution
 # ---------------------------------------------------------------------------
+
 
 def test_factory_returns_local_by_default():
     with patch.dict(os.environ, {}, clear=False):
@@ -193,14 +198,17 @@ def test_factory_falls_back_to_local_for_unknown_provider():
 # Cloud providers — Claude (mocked SDK)
 # ---------------------------------------------------------------------------
 
+
 def test_claude_provider_summarize_calls_api():
     from src.ai.claude import ClaudeProvider
 
     mock_client = MagicMock()
     mock_client.messages.create.return_value.content = [MagicMock(text="Market is up.")]
 
-    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
-         patch("src.ai.claude.anthropic.Anthropic", return_value=mock_client):
+    with (
+        patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+        patch("src.ai.claude.anthropic.Anthropic", return_value=mock_client),
+    ):
         provider = ClaudeProvider()
         result = provider.summarize(SMALL_DATA)
 
@@ -213,12 +221,12 @@ def test_claude_provider_detect_anomalies_parses_json():
 
     anomalies = [{"symbol": "X", "reason": "outlier", "severity": "high"}]
     mock_client = MagicMock()
-    mock_client.messages.create.return_value.content = [
-        MagicMock(text=json.dumps(anomalies))
-    ]
+    mock_client.messages.create.return_value.content = [MagicMock(text=json.dumps(anomalies))]
 
-    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
-         patch("src.ai.claude.anthropic.Anthropic", return_value=mock_client):
+    with (
+        patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+        patch("src.ai.claude.anthropic.Anthropic", return_value=mock_client),
+    ):
         provider = ClaudeProvider()
         result = provider.detect_anomalies(SMALL_DATA)
 
@@ -231,8 +239,10 @@ def test_claude_provider_detect_anomalies_returns_empty_on_bad_json():
     mock_client = MagicMock()
     mock_client.messages.create.return_value.content = [MagicMock(text="not json")]
 
-    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
-         patch("src.ai.claude.anthropic.Anthropic", return_value=mock_client):
+    with (
+        patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+        patch("src.ai.claude.anthropic.Anthropic", return_value=mock_client),
+    ):
         provider = ClaudeProvider()
         result = provider.detect_anomalies(SMALL_DATA)
 
@@ -243,6 +253,7 @@ def test_claude_provider_detect_anomalies_returns_empty_on_bad_json():
 # Cloud providers — OpenAI (mocked SDK)
 # ---------------------------------------------------------------------------
 
+
 def test_openai_provider_summarize_calls_api():
     from src.ai.openai_provider import OpenAIProvider
 
@@ -251,8 +262,10 @@ def test_openai_provider_summarize_calls_api():
         MagicMock(message=MagicMock(content="Stocks are mixed."))
     ]
 
-    with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}), \
-         patch("src.ai.openai_provider.openai.OpenAI", return_value=mock_client):
+    with (
+        patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}),
+        patch("src.ai.openai_provider.openai.OpenAI", return_value=mock_client),
+    ):
         provider = OpenAIProvider()
         result = provider.summarize(SMALL_DATA)
 
@@ -263,6 +276,7 @@ def test_openai_provider_summarize_calls_api():
 # Cloud providers — Perplexity (OpenAI-compatible, mocked)
 # ---------------------------------------------------------------------------
 
+
 def test_perplexity_provider_uses_custom_base_url():
     from src.ai.perplexity import PerplexityProvider
 
@@ -271,8 +285,10 @@ def test_perplexity_provider_uses_custom_base_url():
         MagicMock(message=MagicMock(content="Regional overview."))
     ]
 
-    with patch.dict(os.environ, {"PERPLEXITY_API_KEY": "test-key"}), \
-         patch("src.ai.perplexity.openai.OpenAI", return_value=mock_client) as mock_constructor:
+    with (
+        patch.dict(os.environ, {"PERPLEXITY_API_KEY": "test-key"}),
+        patch("src.ai.perplexity.openai.OpenAI", return_value=mock_client) as mock_constructor,
+    ):
         provider = PerplexityProvider()
         provider.summarize(SMALL_DATA)
 

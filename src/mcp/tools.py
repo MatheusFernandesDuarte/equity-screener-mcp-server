@@ -7,10 +7,10 @@ without a running MCP server. register_tools() wires them into FastMCP.
 from src.ai.base import AIProvider
 from src.services.market_service import MarketService
 
-
 # ---------------------------------------------------------------------------
 # Handler functions
 # ---------------------------------------------------------------------------
+
 
 def handle_get_stocks_by_region(service: MarketService, region: str) -> dict:
     """Return a compact summary for a region (freshness + count + top 10 sample).
@@ -33,7 +33,9 @@ def handle_get_stocks_by_region(service: MarketService, region: str) -> dict:
     return result
 
 
-def handle_get_top_movers(service: MarketService, region: str, n: int = 10, sort_by: str = "price") -> dict:
+def handle_get_top_movers(
+    service: MarketService, region: str, n: int = 10, sort_by: str = "price"
+) -> dict:
     """Return top N stocks sorted by price or change_pct from the latest snapshot."""
     return {
         "region": region,
@@ -50,9 +52,7 @@ def handle_search_symbol(service: MarketService, symbol: str) -> dict:
     }
 
 
-def handle_get_market_summary(
-    service: MarketService, ai_provider: AIProvider, region: str
-) -> dict:
+def handle_get_market_summary(service: MarketService, ai_provider: AIProvider, region: str) -> dict:
     """Generate an AI-powered summary for a region using pre-aggregated data."""
     # Ensure freshness check + background refresh is triggered
     service.get_stocks_by_region(region)
@@ -90,9 +90,7 @@ def handle_trigger_refresh(service: MarketService, region: str) -> dict:
         "region": region,
         "queued": queued,
         "message": (
-            f"Scrape queued for '{region}'."
-            if queued
-            else f"'{region}' is already being scraped."
+            f"Scrape queued for '{region}'." if queued else f"'{region}' is already being scraped."
         ),
     }
 
@@ -100,6 +98,7 @@ def handle_trigger_refresh(service: MarketService, region: str) -> dict:
 # ---------------------------------------------------------------------------
 # MCP registration
 # ---------------------------------------------------------------------------
+
 
 def register_tools(mcp, service: MarketService, ai_provider: AIProvider) -> None:
     """Register all tool handlers with a FastMCP instance."""

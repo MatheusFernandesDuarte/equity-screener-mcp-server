@@ -8,15 +8,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from src.ai.base import MarketInsight
 from src.mcp.tools import (
+    handle_get_market_summary,
     handle_get_stocks_by_region,
     handle_get_top_movers,
     handle_search_symbol,
-    handle_get_market_summary,
     handle_trigger_refresh,
 )
-from src.ai.base import MarketInsight
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -62,6 +61,7 @@ def ai_provider():
 # get_stocks_by_region
 # ---------------------------------------------------------------------------
 
+
 def test_get_stocks_returns_region_and_data(service, ai_provider):
     result = handle_get_stocks_by_region(service, "Argentina")
     assert result["region"] == "Argentina"
@@ -88,6 +88,7 @@ def test_get_stocks_calls_service(service, ai_provider):
 # get_top_movers
 # ---------------------------------------------------------------------------
 
+
 def test_get_top_movers_returns_region_and_movers(service, ai_provider):
     result = handle_get_top_movers(service, "Argentina", n=5)
     assert result["region"] == "Argentina"
@@ -102,6 +103,7 @@ def test_get_top_movers_passes_n_to_service(service, ai_provider):
 # ---------------------------------------------------------------------------
 # search_symbol
 # ---------------------------------------------------------------------------
+
 
 def test_search_symbol_returns_results(service, ai_provider):
     result = handle_search_symbol(service, "AAPL")
@@ -124,6 +126,7 @@ def test_search_symbol_returns_empty_list_when_no_match(service, ai_provider):
 # get_market_summary
 # ---------------------------------------------------------------------------
 
+
 def test_get_market_summary_returns_insight_fields(service, ai_provider):
     result = handle_get_market_summary(service, ai_provider, "Argentina")
     assert result["summary"] == INSIGHT.summary
@@ -145,6 +148,7 @@ def test_get_market_summary_calls_ai_provider_analyze(service, ai_provider):
 # ---------------------------------------------------------------------------
 # trigger_refresh
 # ---------------------------------------------------------------------------
+
 
 def test_trigger_refresh_returns_queued_true_when_submitted(service, ai_provider):
     service.trigger_refresh.return_value = True

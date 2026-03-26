@@ -15,7 +15,6 @@ class MarketInsight:
 
 
 class AIProvider(ABC):
-
     @abstractmethod
     def summarize(self, data: list[dict]) -> str: ...
 

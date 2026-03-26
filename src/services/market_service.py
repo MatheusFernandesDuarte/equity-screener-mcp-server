@@ -5,7 +5,7 @@ Scraping is always triggered in the background via ScrapeManager.
 This layer never touches Selenium directly.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 
 from src.scraper.manager import ScrapeManager
@@ -13,8 +13,8 @@ from src.storage.repository import StockRepository
 
 
 class Freshness(Enum):
-    FRESH   = "fresh"    # now < last_scraped + TTL
-    STALE   = "stale"    # TTL < now < 2×TTL  → serve + background refresh
+    FRESH = "fresh"  # now < last_scraped + TTL
+    STALE = "stale"  # TTL < now < 2×TTL  → serve + background refresh
     EXPIRED = "expired"  # now > 2×TTL         → serve + mark critical
 
 

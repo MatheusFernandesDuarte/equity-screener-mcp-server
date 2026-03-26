@@ -1,11 +1,15 @@
 # Yahoo Finance Regional Crawler
 
+[![CI](https://github.com/MatheusFernandesDuarte/yahoo-finance-regional-crawler/actions/workflows/ci.yml/badge.svg)](https://github.com/MatheusFernandesDuarte/yahoo-finance-regional-crawler/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 **Ask your AI assistant about stock markets in any country — and get real answers, not hallucinations.**
 
 This project scrapes Yahoo Finance equity data for any region, stores it locally, and exposes it as tools that AI agents (Claude, GPT, or any MCP client) can call. Instead of the AI making up stock prices, it queries your local database.
 
 **Practical example:**
-> "What are the top movers in Brazil today?" → Claude calls `get_top_movers("Brazil")` → gets live data from your database → answers accurately.
+> "What are the top movers in Brazil today?" → Claude calls `get_top_movers("Brazil", sort_by="change_pct")` → gets live data from your database → answers accurately.
 
 No more hallucinated tickers. No more stale training-data answers. The AI gets real numbers.
 
@@ -22,7 +26,7 @@ This project gives your AI a tool it can actually call. You run the MCP server o
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install dependencies (Python 3.11+ required)
 uv sync
 
 # Scrape a region (stores data locally in DuckDB + CSV)
@@ -40,17 +44,21 @@ Output goes to `data/outputs/` (CSV) and `data/market.duckdb`.
 
 ## Connect to Claude (or any MCP client)
 
-Add to your MCP config (`~/.claude/claude_desktop_config.json` or Claude Code settings):
+Add to your MCP config or run via Claude Code CLI:
+
+```bash
+claude mcp add yahoo-finance -- python /path/to/yahoo-finance-regional-crawler/mcp_server.py
+```
+
+Or add manually to `~/.claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "yahoo-finance": {
       "command": "python",
-      "args": ["mcp_server.py"],
-      "cwd": "/path/to/yahoo-finance-regional-crawler",
+      "args": ["/path/to/yahoo-finance-regional-crawler/mcp_server.py"],
       "env": {
-        "MCP_TRANSPORT": "stdio",
         "AI_PROVIDER": "local"
       }
     }
@@ -60,8 +68,8 @@ Add to your MCP config (`~/.claude/claude_desktop_config.json` or Claude Code se
 
 Now ask Claude:
 - *"What are the top 10 stocks in Japan right now?"*
+- *"Which stock spiked the most in Argentina today?"*
 - *"Are there any anomalies in the Brazilian market today?"*
-- *"Give me a market summary for Argentina."*
 - *"Find any ticker with 'petro' in the name."*
 
 Claude will call the tools, fetch live data from your local database, and answer with real numbers.
@@ -72,13 +80,13 @@ Claude will call the tools, fetch live data from your local database, and answer
 
 | Tool | What it does |
 |------|-------------|
-| `get_stocks_by_region(region)` | Returns the latest snapshot for a region. Triggers a background refresh if data is stale. |
-| `get_top_movers(region, n=10)` | Top N stocks by price from the latest snapshot. |
+| `get_stocks_by_region(region)` | Compact snapshot summary (count + top 10). Triggers background refresh if stale. |
+| `get_top_movers(region, n=10, sort_by="price")` | Top N stocks sorted by `price` or `change_pct` (daily % change). |
 | `search_symbol(symbol)` | Find any ticker across all scraped regions. Partial match, case-insensitive. |
 | `get_market_summary(region)` | AI-generated summary with anomaly detection and trend analysis. |
 | `trigger_refresh(region)` | Queue a fresh scrape in the background without blocking. |
 
-The AI never waits for a browser — responses always come from the local database. Scraping happens in background workers.
+The AI never waits for a network call — responses always come from the local database. Scraping happens in background workers.
 
 ---
 
@@ -94,17 +102,18 @@ The AI never waits for a browser — responses always come from the local databa
 └─────────────────────────────────────────────────────┘
          ↓ (background thread)
 ┌─────────────────────────────────────────────────────┐
-│  ScraperEngine  ──→  Yahoo Finance (Selenium+BS4)   │
+│  ScraperEngine  ──→  Yahoo Finance API (HTTP)       │
 │       ↓                                             │
 │  DuckDB (write, locked)                             │
 └─────────────────────────────────────────────────────┘
 ```
 
 **Key invariants:**
-- MCP tools never block on a browser — always served from DuckDB
+- MCP tools never block on a network call — always served from DuckDB
 - Scraping only happens in background workers via `ScrapeManager`
 - Stale-while-revalidate: return cached data, trigger refresh in background
 - AI layer is optional and fully offline by default
+- No browser required — uses Yahoo Finance's internal screener API directly
 
 ---
 
@@ -148,26 +157,26 @@ Data persists to `./data/outputs/` on the host.
 
 ```bash
 uv sync
-uv run pytest tests/ -v    # 105 tests, no browser, no network
+python -m pytest tests/ -v    # 109 tests, no browser, no network
 ```
 
 ### Project structure
 
 ```
 src/
-  scraper/     ScraperEngine (Selenium+BS4) + ScrapeManager (background workers)
+  scraper/     ScraperEngine (HTTP/requests) + ScrapeManager (background workers)
   storage/     DuckDB schema + StockRepository
   services/    MarketService (SWR cache, freshness, dynamic TTL)
   ai/          AIProvider abstraction + LocalProvider + cloud providers
   mcp/         Tool handlers + stdio/HTTP transports
   app/         CLI orchestrator + factories
-  config/      Chrome options
 tests/         One test file per module, TDD throughout
 mcp_server.py  MCP entrypoint
 run.py         CLI entrypoint
 ```
 
 See [docs/extending-providers.md](docs/extending-providers.md) to add a new AI provider or data source.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution guidelines.
 
 ---
 
@@ -183,8 +192,7 @@ See [docs/extending-providers.md](docs/extending-providers.md) to add a new AI p
 | `PERPLEXITY_API_KEY` | — | Perplexity provider |
 | `ANTHROPIC_MODEL` | `claude-haiku-4-5-20251001` | Claude model override |
 | `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model override |
-| `CHROME_BIN` | — | Chromium binary (Docker) |
-| `CHROMEDRIVER_BIN` | `/usr/bin/chromedriver` | ChromeDriver path (Docker) |
+| `DUCKDB_PATH` | `data/market.duckdb` | Custom database path |
 
 ---
 

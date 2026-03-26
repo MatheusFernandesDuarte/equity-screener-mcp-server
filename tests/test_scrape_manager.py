@@ -6,16 +6,14 @@ Threading behaviour is validated using Events and short timeouts.
 
 import threading
 import time
-from unittest.mock import MagicMock, call
-
-import pytest
+from unittest.mock import MagicMock
 
 from src.scraper.manager import ScrapeManager
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_manager(scrape_rows=None, max_workers=1):
     """Return a ScrapeManager with a mock engine factory and mock repository."""
@@ -41,6 +39,7 @@ def make_manager(scrape_rows=None, max_workers=1):
 # submit() — deduplication
 # ---------------------------------------------------------------------------
 
+
 def test_submit_returns_true_for_new_region():
     manager, *_ = make_manager()
     result = manager.submit("Argentina")
@@ -63,7 +62,7 @@ def test_submit_returns_false_for_duplicate_region():
     mock_engine.scrape.side_effect = slow_scrape
 
     manager.submit("Argentina")
-    started.wait(timeout=2)       # wait until worker is executing
+    started.wait(timeout=2)  # wait until worker is executing
 
     second = manager.submit("Argentina")  # duplicate — must return False
     assert second is False
@@ -137,6 +136,7 @@ def test_region_removed_even_when_scrape_raises():
 # ---------------------------------------------------------------------------
 # Worker — scrape + persist
 # ---------------------------------------------------------------------------
+
 
 def test_worker_calls_engine_scrape_with_region():
     manager, engine_factory, mock_engine, mock_repo = make_manager()
@@ -221,6 +221,7 @@ def test_worker_closes_driver_even_when_scrape_raises():
 # ---------------------------------------------------------------------------
 # Resubmit after completion
 # ---------------------------------------------------------------------------
+
 
 def test_region_can_be_resubmitted_after_completion():
     manager, engine_factory, mock_engine, mock_repo = make_manager()

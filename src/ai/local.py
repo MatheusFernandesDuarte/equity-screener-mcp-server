@@ -6,7 +6,6 @@ from src.ai.base import AIProvider
 
 
 class LocalProvider(AIProvider):
-
     def summarize(self, data: list[dict]) -> str:
         prices = [r["price"] for r in data if isinstance(r.get("price"), (int, float))]
         if not prices:
@@ -33,13 +32,15 @@ class LocalProvider(AIProvider):
                 continue
             z = abs(price - mean) / stdev
             if z > 2.0:
-                result.append({
-                    "symbol": row.get("symbol", ""),
-                    "price": price,
-                    "z_score": round(z, 2),
-                    "reason": "price outlier",
-                    "severity": "high" if z > 3.0 else "medium",
-                })
+                result.append(
+                    {
+                        "symbol": row.get("symbol", ""),
+                        "price": price,
+                        "z_score": round(z, 2),
+                        "reason": "price outlier",
+                        "severity": "high" if z > 3.0 else "medium",
+                    }
+                )
         return result
 
     def analyze_trends(self, data: list[dict]) -> dict:

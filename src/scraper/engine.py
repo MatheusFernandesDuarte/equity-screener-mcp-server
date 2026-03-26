@@ -171,9 +171,7 @@ class ScraperEngine:
             "quoteType": "EQUITY",
             "query": {
                 "operator": "and",
-                "operands": [
-                    {"operator": "eq", "operands": ["region", region_code]}
-                ],
+                "operands": [{"operator": "eq", "operands": ["region", region_code]}],
             },
             "userId": "",
             "userIdType": "guid",
@@ -185,9 +183,7 @@ class ScraperEngine:
             "formatted": "false",
             "corsDomain": "finance.yahoo.com",
         }
-        resp = self._session.post(
-            _SCREENER_URL, params=params, json=payload, timeout=30
-        )
+        resp = self._session.post(_SCREENER_URL, params=params, json=payload, timeout=30)
         resp.raise_for_status()
         return self._parse_response(resp.json())
 
@@ -212,12 +208,14 @@ class ScraperEngine:
             if not symbol or price is None:
                 continue
 
-            results.append({
-                "symbol": symbol,
-                "name": name,
-                "price": str(price),
-                "change_pct": str(round(change_pct, 4)) if change_pct is not None else "",
-            })
+            results.append(
+                {
+                    "symbol": symbol,
+                    "name": name,
+                    "price": str(price),
+                    "change_pct": str(round(change_pct, 4)) if change_pct is not None else "",
+                }
+            )
         return results
 
     # ------------------------------------------------------------------
@@ -235,6 +233,5 @@ class ScraperEngine:
         if len(normalized) >= 2:
             return normalized[:2]
         raise ValueError(
-            f"Unknown region '{region}'. "
-            f"Known regions: {sorted(_REGION_CODES.keys())}"
+            f"Unknown region '{region}'. Known regions: {sorted(_REGION_CODES.keys())}"
         )
